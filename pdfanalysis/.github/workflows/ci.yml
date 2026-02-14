@@ -1,0 +1,73 @@
+name: CI (Code Quality & Tests)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pdf_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest pytest-django pytest-cov
+
+      - name: Run Ruff (Lint Check)
+        run: ruff check .
+
+      - name: Run Tests with Pytest
+        env:
+          # Database Variables
+          DB_NAME: pdf_db
+          DB_USER: postgres
+          DB_PASSWORD: postgres_pass
+          DB_HOST: localhost
+          DB_PORT: 5432
+          
+          # Supabase Variables
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          
+          # AI & OpenAI Variables
+          AI_MODE: ${{ secrets.AI_MODE }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          
+          # Celery Variables
+          CELERY_BROKER_URL: ${{ secrets.CELERY_BROKER_URL }}
+          CELERY_RESULT_BACKEND: ${{ secrets.CELERY_RESULT_BACKEND }}
+          
+          # Django General
+          SECRET_KEY: "ci-test-secret-key"
+          DEBUG: "True"
+        run: pytest --cov=. --cov-report=term-missing
