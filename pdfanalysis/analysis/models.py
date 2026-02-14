@@ -1,7 +1,6 @@
 from django.db import models
+
 from documents.models import Document
-
-
 
 ANALYSIS_JOB_STATUS_CHOICES = (
     ("PENDING", "Pending"),

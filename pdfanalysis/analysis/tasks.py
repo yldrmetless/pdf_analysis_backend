@@ -1,20 +1,24 @@
+import re
+
 from celery import shared_task
 from django.utils import timezone
 
+from analysis.helpers.ai_analysis import (
+    analyze_document_with_openai,
+    generate_suggestions_en,
+)
 from analysis.models import AnalysisJob
+from analysis.services import (
+    download_pdf_bytes_from_supabase,
+    extract_full_text_pages,
+)
 from documents.models import DocumentChunk
-from analysis.services import download_pdf_bytes_from_supabase, extract_full_text_pages
-from analysis.helpers.ai_analysis import analyze_document_with_openai, generate_suggestions_en
-import re
-
 
 
 def sanitize_text(s: str) -> str:
     if not s:
         return ""
-    # Postgres TEXT/JSON alanları NUL kabul etmez
     s = s.replace("\x00", "")
-    # İstersen diğer kontrol karakterlerini de temizle (güvenli)
     s = re.sub(r"[\x01-\x08\x0B\x0C\x0E-\x1F]", "", s)
     return s
 
@@ -31,7 +35,7 @@ def deep_sanitize(obj):
 
 @shared_task(bind=True)
 def run_full_analysis(self, job_id: int):
-    ENABLE_SUGGESTIONS = True
+    enable_suggestions = True
     job = AnalysisJob.objects.select_related("document").get(id=job_id)
     doc = job.document
 
@@ -55,7 +59,7 @@ def run_full_analysis(self, job_id: int):
             page_end = min(i + 2, total)
 
             text = "\n\n".join([t for t in pages[i:page_end] if t]).strip()
-            text = sanitize_text(text)  # <-- EKLE
+            text = sanitize_text(text)
             if text:
                 DocumentChunk.objects.create(
                     document=doc,
@@ -69,25 +73,22 @@ def run_full_analysis(self, job_id: int):
             job.progress = min(95, int((page_end / max(1, total)) * 95))
             job.save(update_fields=["progress"])
 
-        # ---- AI ANALYSIS (EKLE) ----
         job.progress = 99
         job.save(update_fields=["progress"])
 
         full_text = "\n\n".join([t for t in pages if t]).strip()
-        full_text = sanitize_text(full_text) 
+        full_text = sanitize_text(full_text)
 
         raw, analysis = analyze_document_with_openai(full_text)
         raw = sanitize_text(raw)
         analysis = deep_sanitize(analysis)
 
-        # Remove any suggestions from the main analysis (handled separately)
         analysis.pop("suggestions", None)
 
-        if ENABLE_SUGGESTIONS:
+        if enable_suggestions:
             raw_retry, analysis_retry = generate_suggestions_en(full_text)
             analysis_retry = deep_sanitize(analysis_retry) or {}
             retry_sugs = analysis_retry.get("suggestions", [])
-            print(">>> SUGGESTIONS:", type(retry_sugs), len(retry_sugs) if isinstance(retry_sugs, list) else None)
             if isinstance(retry_sugs, list) and len(retry_sugs) > 0:
                 analysis["suggestions"] = retry_sugs
             else:
@@ -95,7 +96,6 @@ def run_full_analysis(self, job_id: int):
         else:
             analysis["suggestions"] = []
 
-        print(">>> FINAL SUGS:", len((analysis.get("suggestions") or [])))
         doc.ai_raw = raw
         doc.analysis_json = analysis
         doc.analysis_text = analysis.get("summary", "")
@@ -103,10 +103,15 @@ def run_full_analysis(self, job_id: int):
 
         doc.page_count = page_count
         doc.status = "READY"
-        doc.save(update_fields=["page_count", "status", "ai_raw", "analysis_json", "analysis_text"])
-        
-        print(">>> SAVING SUGGESTIONS LEN:", len((analysis.get("suggestions") or [])))
-
+        doc.save(
+            update_fields=[
+                "page_count",
+                "status",
+                "ai_raw",
+                "analysis_json",
+                "analysis_text",
+            ]
+        )
 
         job.status = "READY"
         job.progress = 100

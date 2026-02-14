@@ -1,8 +1,10 @@
+from django.conf import settings
 from rest_framework import serializers
-from accounts.models import User
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.conf import settings
+
+from accounts.models import User
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
@@ -13,7 +15,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value: str):
         if value and User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("Bu e-posta zaten kullanılıyor.")
+            raise serializers.ValidationError("This email is already in use.")
         return value
 
     def create(self, validated_data):
@@ -37,9 +39,9 @@ class LoginSerializer(serializers.Serializer):
             or User.objects.filter(email__iexact=ident).first()
         )
         if not user or not user.check_password(password):
-            raise AuthenticationFailed("Kullanıcı adı/e-posta veya şifre hatalı.")
+            raise AuthenticationFailed("The username/email or password is incorrect.")
         if not user.is_active:
-            raise AuthenticationFailed("Bu kullanıcı pasif.")
+            raise AuthenticationFailed("This user is inactive.")
 
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
@@ -53,7 +55,7 @@ class LoginSerializer(serializers.Serializer):
             "refresh_token": str(refresh),
             "expires_time": expires_minutes,
         }
-        
+
 
 class MyProfileSerializer(serializers.ModelSerializer):
     class Meta:

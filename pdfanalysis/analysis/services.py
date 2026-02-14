@@ -1,9 +1,11 @@
-import urllib.request
+import os
 import urllib.error
+import urllib.request
 from io import BytesIO
 from urllib.parse import quote
-import os
+
 import pdfplumber
+
 
 def download_pdf_bytes_from_supabase(file_path: str) -> bytes:
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
@@ -11,7 +13,9 @@ def download_pdf_bytes_from_supabase(file_path: str) -> bytes:
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     if not supabase_url or not bucket or not key:
-        raise ValueError("SUPABASE_URL / SUPABASE_BUCKET / SUPABASE_SERVICE_ROLE_KEY eksik.")
+        raise ValueError(
+            "SUPABASE_URL / SUPABASE_BUCKET / SUPABASE_SERVICE_ROLE_KEY eksik."
+        )
 
     safe_path = quote(file_path.lstrip("/"), safe="/")
 
@@ -39,14 +43,15 @@ def extract_first_pages_text(pdf_bytes: bytes, max_pages: int = 2) -> tuple[int,
         for i in range(n):
             page = pdf.pages[i]
 
-            t = (page.extract_text(layout=False, x_tolerance=2, y_tolerance=2) or "").strip()
+            t = (
+                page.extract_text(layout=False, x_tolerance=2, y_tolerance=2) or ""
+            ).strip()
 
             if t:
                 texts.append(t)
 
         return page_count, "\n\n".join(texts).strip()
-    
-    
+
 
 def extract_full_text_pages(pdf_bytes: bytes, max_pages: int = 50):
     with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
@@ -56,7 +61,9 @@ def extract_full_text_pages(pdf_bytes: bytes, max_pages: int = 50):
         for i in range(n):
             page = pdf.pages[i]
 
-            t = (page.extract_text(layout=False, x_tolerance=2, y_tolerance=2) or "").strip()
+            t = (
+                page.extract_text(layout=False, x_tolerance=2, y_tolerance=2) or ""
+            ).strip()
             pages.append(t)
 
         return page_count, pages

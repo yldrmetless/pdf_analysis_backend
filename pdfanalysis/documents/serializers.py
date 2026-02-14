@@ -1,31 +1,43 @@
-from rest_framework import serializers
-from documents.models import Document, DocumentChunk
-from django.utils import timezone
 from datetime import timedelta
+
+from django.utils import timezone
+from rest_framework import serializers
+
+from documents.models import Document, DocumentChunk
 
 
 class DocumentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = ("title", "original_name", "file_path", "file_size", "mime_type", "checksum")
-        
+        fields = (
+            "title",
+            "original_name",
+            "file_path",
+            "file_size",
+            "mime_type",
+            "checksum",
+        )
+
     def validate(self, attrs):
         user = self.context["request"].user
-        
+
         time_threshold = timezone.now() - timedelta(days=1)
-        DAILY_LIMIT = 15
+        daily_limit = 15
 
         daily_upload_count = Document.objects.filter(
-            owner=user, 
-            created_at__gte=time_threshold,
-            is_deleted=False
+            owner=user, created_at__gte=time_threshold, is_deleted=False
         ).count()
 
-        if daily_upload_count >= DAILY_LIMIT:
-            raise serializers.ValidationError({
-                "error": f"Daily upload limit reached ({DAILY_LIMIT}). Please try again tomorrow."
-            })
-            
+        if daily_upload_count >= daily_limit:
+            raise serializers.ValidationError(
+                {
+                    "error": (
+                        f"Daily upload limit reached ({daily_limit}). "
+                        "Please try again tomorrow."
+                    )
+                }
+            )
+
         return attrs
 
     def validate_mime_type(self, value):
@@ -55,23 +67,28 @@ class DocumentSerializer(serializers.ModelSerializer):
     latest_preview_job_error = serializers.SerializerMethodField()
     chunk_count = serializers.SerializerMethodField()
 
-    
     class Meta:
         model = Document
         fields = (
-            "id", "title", "original_name", "file_path", "file_size", "mime_type",
-            "status", "page_count", "language","preview_text", "created_at",
-            "latest_preview_job_status", "latest_preview_job_progress", "latest_preview_job_error",
-            "chunk_count"
+            "id",
+            "title",
+            "original_name",
+            "file_path",
+            "file_size",
+            "mime_type",
+            "status",
+            "page_count",
+            "language",
+            "preview_text",
+            "created_at",
+            "latest_preview_job_status",
+            "latest_preview_job_progress",
+            "latest_preview_job_error",
+            "chunk_count",
         )
 
     def _latest_preview_job(self, obj):
-        return (
-            obj.jobs
-            .filter(job_type="PREVIEW")
-            .order_by("-id")
-            .first()
-        )
+        return obj.jobs.filter(job_type="PREVIEW").order_by("-id").first()
 
     def get_latest_preview_job_status(self, obj):
         job = self._latest_preview_job(obj)
@@ -84,16 +101,16 @@ class DocumentSerializer(serializers.ModelSerializer):
     def get_latest_preview_job_error(self, obj):
         job = self._latest_preview_job(obj)
         return job.error if job else ""
-    
+
     def get_chunk_count(self, obj):
         return DocumentChunk.objects.filter(document=obj).count()
-    
+
+
 class DocumentOverviewSerializer(serializers.Serializer):
     total_documents = serializers.IntegerField()
     processing = serializers.IntegerField()
     ready = serializers.IntegerField()
     errors = serializers.IntegerField()
-
 
 
 class RecentDocumentItemSerializer(serializers.ModelSerializer):
@@ -106,8 +123,8 @@ class RecentDocumentItemSerializer(serializers.ModelSerializer):
 
     def get_document_name(self, obj):
         return obj.title or obj.original_name
-    
-    
+
+
 class EventLogItemSerializer(serializers.Serializer):
     ts = serializers.DateTimeField()
     event = serializers.CharField()

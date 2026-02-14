@@ -1,52 +1,71 @@
-import os
 import json
+import os
+
 from openai import OpenAI
-import re
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 JSON_SCHEMA = {
-  "name": "doc_analysis",
-  "schema": {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-      "doc_type": {"type": "string"},
-      "language": {"type": "string"},
-      "summary": {"type": "string"},
-      "key_points": {"type": "array", "items": {"type": "string"}},
-      "entities": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "additionalProperties": False,
-          "properties": {"type": {"type": "string"}, "value": {"type": "string"}},
-          "required": ["type", "value"]
-        }
-      },
-      "dates": {"type": "array", "items": {"type": "string"}},
-      "numbers": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "additionalProperties": False,
-          "properties": {"label": {"type": "string"}, "value": {"type": "string"}},
-          "required": ["label", "value"]
-        }
-      },
-      "action_items": {"type": "array", "items": {"type": "string"}},
-      "sections": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "additionalProperties": False,
-          "properties": {"title": {"type": "string"}, "content": {"type": "string"}},
-          "required": ["title", "content"]
-        }
-      }
+    "name": "doc_analysis",
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "doc_type": {"type": "string"},
+            "language": {"type": "string"},
+            "summary": {"type": "string"},
+            "key_points": {"type": "array", "items": {"type": "string"}},
+            "entities": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "type": {"type": "string"},
+                        "value": {"type": "string"},
+                    },
+                    "required": ["type", "value"],
+                },
+            },
+            "dates": {"type": "array", "items": {"type": "string"}},
+            "numbers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "label": {"type": "string"},
+                        "value": {"type": "string"},
+                    },
+                    "required": ["label", "value"],
+                },
+            },
+            "action_items": {"type": "array", "items": {"type": "string"}},
+            "sections": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "title": {"type": "string"},
+                        "content": {"type": "string"},
+                    },
+                    "required": ["title", "content"],
+                },
+            },
+        },
+        "required": [
+            "doc_type",
+            "language",
+            "summary",
+            "key_points",
+            "entities",
+            "dates",
+            "numbers",
+            "action_items",
+            "sections",
+        ],
     },
-    "required": ["doc_type","language","summary","key_points","entities","dates","numbers","action_items","sections"]
-  }
 }
 
 
@@ -103,8 +122,6 @@ def analyze_document_with_openai(full_text: str) -> tuple[str, dict]:
         parsed["suggestions"] = []
 
     return raw, parsed
-
-
 
 
 def generate_suggestions_en(full_text: str) -> tuple[str, dict]:

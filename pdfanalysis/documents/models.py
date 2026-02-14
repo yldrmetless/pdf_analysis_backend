@@ -1,4 +1,5 @@
 from django.db import models
+
 from accounts.models import User
 
 # Create your models here.
@@ -12,9 +13,7 @@ DOCUMENT_STATUS_CHOICES = (
 
 
 class Document(models.Model):
-    owner = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="documents"
-    )
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="documents")
     title = models.CharField(max_length=255, blank=True)
     original_name = models.CharField(max_length=255)
     file_path = models.CharField(max_length=512)
@@ -23,8 +22,8 @@ class Document(models.Model):
 
     page_count = models.PositiveIntegerField(null=True, blank=True)
     language = models.CharField(max_length=20, blank=True)
-    
-    preview_text = models.TextField(blank=True) 
+
+    preview_text = models.TextField(blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -36,12 +35,11 @@ class Document(models.Model):
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     analysis_json = models.JSONField(null=True, blank=True)
     analysis_text = models.TextField(blank=True, default="")
-    
-    ai_raw = models.TextField(blank=True, default="") 
 
+    ai_raw = models.TextField(blank=True, default="")
 
 
 class DocumentChunk(models.Model):

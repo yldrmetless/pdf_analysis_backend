@@ -1,0 +1,58 @@
+[tool.black]
+line-length = 88
+target-version = ['py313']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+extend-exclude = ["migrations", "venv"]
+
+[tool.ruff.lint]
+# Eskiden doğrudan [tool.ruff] altındaydı, şimdi buradalar:
+select = ["E", "W", "F", "I", "C90", "UP", "N"]
+ignore = []
+per-file-ignores = { "**/migrations/*" = ["E501"], "**/settings.py" = ["E501"], "analysis/helpers/ai_analysis.py" = ["E501"] }
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["accounts", "documents", "analysis", "config"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "--reuse-db --cov=. --cov-report=term-missing"
+
+[tool.coverage.run]
+omit = [
+    "*apps.py",
+    "*migrations/*",
+    "*settings*",
+    "*urls.py",
+    "*wsgi.py",
+    "*asgi.py",
+    "manage.py",
+    "venv/*",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
