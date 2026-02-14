@@ -1,27 +1,47 @@
 from rest_framework import serializers
 from documents.models import Document, DocumentChunk
-
+from django.utils import timezone
+from datetime import timedelta
 
 
 class DocumentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = ("title", "original_name", "file_path", "file_size", "mime_type", "checksum")
+        
+    def validate(self, attrs):
+        user = self.context["request"].user
+        
+        time_threshold = timezone.now() - timedelta(days=1)
+        DAILY_LIMIT = 15
+
+        daily_upload_count = Document.objects.filter(
+            owner=user, 
+            created_at__gte=time_threshold,
+            is_deleted=False
+        ).count()
+
+        if daily_upload_count >= DAILY_LIMIT:
+            raise serializers.ValidationError({
+                "error": f"Daily upload limit reached ({DAILY_LIMIT}). Please try again tomorrow."
+            })
+            
+        return attrs
 
     def validate_mime_type(self, value):
         if value != "application/pdf":
-            raise serializers.ValidationError("Sadece PDF kabul edilir.")
+            raise serializers.ValidationError("Only PDF files are accepted.")
         return value
 
     def validate_file_size(self, value):
         max_mb = 20
         if value > max_mb * 1024 * 1024:
-            raise serializers.ValidationError(f"Dosya boyutu en fazla {max_mb}MB olmalı.")
+            raise serializers.ValidationError(f"File size must be at most {max_mb}MB.")
         return value
 
     def validate_file_path(self, value):
         if not value or ".." in value:
-            raise serializers.ValidationError("Geçersiz file_path.")
+            raise serializers.ValidationError("Invalid file_path.")
         return value
 
     def create(self, validated_data):
@@ -67,14 +87,6 @@ class DocumentSerializer(serializers.ModelSerializer):
     
     def get_chunk_count(self, obj):
         return DocumentChunk.objects.filter(document=obj).count()
-    
-    
-
-class DocumentChunkSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DocumentChunk
-        fields = ["id", "chunk_index", "page_start", "page_end", "text"]
-        
     
 class DocumentOverviewSerializer(serializers.Serializer):
     total_documents = serializers.IntegerField()

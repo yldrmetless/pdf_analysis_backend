@@ -4,7 +4,7 @@ from django.utils import timezone
 from analysis.models import AnalysisJob
 from documents.models import DocumentChunk
 from analysis.services import download_pdf_bytes_from_supabase, extract_full_text_pages
-from analysis.helpers.ai_analysis import analyze_document_with_openai
+from analysis.helpers.ai_analysis import analyze_document_with_openai, generate_suggestions_en
 import re
 
 
@@ -31,6 +31,7 @@ def deep_sanitize(obj):
 
 @shared_task(bind=True)
 def run_full_analysis(self, job_id: int):
+    ENABLE_SUGGESTIONS = True
     job = AnalysisJob.objects.select_related("document").get(id=job_id)
     doc = job.document
 
@@ -79,10 +80,22 @@ def run_full_analysis(self, job_id: int):
         raw = sanitize_text(raw)
         analysis = deep_sanitize(analysis)
 
-        print(">>> RAW LEN:", len(raw or ""))
-        print(">>> RAW HEAD:", (raw or "")[:200])
-        print(">>> ANALYSIS KEYS:", list((analysis or {}).keys()))
+        # Remove any suggestions from the main analysis (handled separately)
+        analysis.pop("suggestions", None)
 
+        if ENABLE_SUGGESTIONS:
+            raw_retry, analysis_retry = generate_suggestions_en(full_text)
+            analysis_retry = deep_sanitize(analysis_retry) or {}
+            retry_sugs = analysis_retry.get("suggestions", [])
+            print(">>> SUGGESTIONS:", type(retry_sugs), len(retry_sugs) if isinstance(retry_sugs, list) else None)
+            if isinstance(retry_sugs, list) and len(retry_sugs) > 0:
+                analysis["suggestions"] = retry_sugs
+            else:
+                analysis["suggestions"] = []
+        else:
+            analysis["suggestions"] = []
+
+        print(">>> FINAL SUGS:", len((analysis.get("suggestions") or [])))
         doc.ai_raw = raw
         doc.analysis_json = analysis
         doc.analysis_text = analysis.get("summary", "")
@@ -91,6 +104,9 @@ def run_full_analysis(self, job_id: int):
         doc.page_count = page_count
         doc.status = "READY"
         doc.save(update_fields=["page_count", "status", "ai_raw", "analysis_json", "analysis_text"])
+        
+        print(">>> SAVING SUGGESTIONS LEN:", len((analysis.get("suggestions") or [])))
+
 
         job.status = "READY"
         job.progress = 100
