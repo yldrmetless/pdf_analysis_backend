@@ -29,7 +29,11 @@ load_dotenv(BASE_DIR / ".env")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes", "on")
 SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'pdf-analysis-backend.onrender.com',
+]
 
 
 # Application definition
