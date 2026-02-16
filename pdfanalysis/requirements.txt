@@ -29,6 +29,7 @@ djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
 filelock==3.23.0
 fsspec==2026.2.0
+gunicorn
 h11==0.16.0
 h2==4.3.0
 hpack==4.1.0
